@@ -4,13 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📷 営業報告（Firestore＋画像リサイズ）</title>
-<!-- Firebase v8 CDN -->
 
+  <!-- ✅ Firebase v9 CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js";
 
-  <!-- ✅ Firebase v9互換（compat）モード！ -->
- <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDFsTE_AelFhiM95Vjprdz1JmIGxHep_zw",
+      authDomain: "photo-upload-form.firebaseapp.com",
+      projectId: "photo-upload-form",
+      storageBucket: "photo-upload-form.appspot.com",
+      messagingSenderId: "194112470190",
+      appId: "1:194112470190:web:38ef7cb06c06432de2413f",
+      measurementId: "G-TH5DL602JK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    const input = document.getElementById('cameraInput');
+    const preview = document.getElementById('preview');
+    const info = document.getElementById('info');
+    let resizedBlob = null;
+    let lat = null;
+    let lon = null;
+    let timestamp = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            lat = position.coords.latitude;
+            lon = position.coords.longitude;
+            timestamp = new Date().toISOString();
+            info.innerHTML = `📍 位置情報を取得済み`;
+          },
+          (error) => {
+            info.innerHTML = "⚠️ 位置情報の取得に失敗しました。許可されていますか？";
+          }
+        );
+      }
+    });
+
+    function resizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            const canvas = document.createElement('canvas');
+            const maxWidth = 800;
+            const scale = maxWidth / img.width;
+            canvas.width = maxWidth;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              if (blob) resolve({ blob, previewUrl: canvas.toDataURL('image/jpeg') });
+              else reject("Blob生成失敗");
+            }, 'image/jpeg', 0.8);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    input.addEventListener('change', async function () {
+      const file = input.files[0];
+      if (!file) return;
+      try {
+        const { blob, previewUrl } = await resizeImage(file);
+        resizedBlob = blob;
+        preview.src = previewUrl;
+        preview.style.display = 'block';
+      } catch (err) {
+        alert('画像の読み込みに失敗しました');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const place = document.getElementById('placeName').value;
+      const person = document.getElementById('personName').value;
+      const time = document.getElementById('visitTime').value;
+      const content = document.getElementById('content').value;
+
+      if (!resizedBlob || !place || !person || !time || !content) {
+        alert("すべての項目と写真を入力してください。");
+        return;
+      }
+
+      try {
+        const filename = 'photos/photo_' + Date.now();
+        const storageRef = ref(storage, filename);
+        await uploadBytes(storageRef, resizedBlob);
+        const imageUrl = await getDownloadURL(storageRef);
+
+        await addDoc(collection(db, "reports"), {
+          place,
+          person,
+          time,
+          content,
+          lat,
+          lon,
+          timestamp,
+          imageUrl
+        });
+
+        alert("✅ Firestoreへの保存完了！");
+      } catch (error) {
+        console.error("🔥 アップロード失敗:", error);
+        alert("アップロード中にエラーが発生しました");
+      }
+    });
+  </script>
+
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -64,147 +176,26 @@
   </style>
 </head>
 <body>
-  <h1>📷 営業報告</h1>
+  <h1>📷 営業報告（リサイズ対応）</h1>
 
   <label>営業先（店名・事業所名）</label>
-  <input type="text" id="placeName">
+  <input type="text" id="placeName" placeholder="例：○○クリニック">
 
   <label>担当者名</label>
-  <input type="text" id="personName">
+  <input type="text" id="personName" placeholder="例：田中 様">
 
   <label>訪問時間</label>
   <input type="time" id="visitTime">
 
-  <label>営業内容</label>
-  <textarea id="content" rows="4"></textarea>
+  <label>営業内容（メモ）</label>
+  <textarea id="content" rows="4" placeholder="例：リーフレット設置のお願いなど"></textarea>
 
   <label>写真を撮影／選択</label>
   <input type="file" accept="image/*" capture="environment" id="cameraInput">
   <img id="preview" src="" alt="プレビュー" style="display:none;">
 
-  <div id="info">📍 位置情報を取得中...</div>
+  <div id="info">📍 位置情報を取得しました（内部用）</div>
 
   <button id="uploadBtn">Firestoreに送信</button>
-
-
-
-  // Firebase 初期化
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const storage = firebase.storage();
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyDFsTE_AelFhiM95Vjprdz1JmIGxHep_zw",
-    authDomain: "photo-upload-form.firebaseapp.com",
-    projectId: "photo-upload-form",
-    storageBucket: "photo-upload-form.appspot.com", // ← 修正済み！
-    messagingSenderId: "194112470190",
-    appId: "1:194112470190:web:38ef7cb06c06432de2413f",
-    measurementId: "G-TH5DL602JK"
-  };
- 
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const storage = firebase.storage();
-
-    const input = document.getElementById('cameraInput');
-    const preview = document.getElementById('preview');
-    const info = document.getElementById('info');
-    let resizedBlob = null;
-    let lat = null;
-    let lon = null;
-    let timestamp = null;
-
-    window.addEventListener('DOMContentLoaded', () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            lat = position.coords.latitude;
-            lon = position.coords.longitude;
-            timestamp = new Date().toISOString();
-            info.innerHTML = `📍 位置情報取得済み`;
-          },
-          () => {
-            info.innerHTML = "⚠️ 位置情報の取得に失敗しました。";
-          }
-        );
-      }
-    });
-
-    function resizeImage(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const scale = 800 / img.width;
-            canvas.width = 800;
-            canvas.height = img.height * scale;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-              if (blob) {
-                resolve({ blob, previewUrl: canvas.toDataURL('image/jpeg') });
-              } else {
-                reject("Blob生成失敗");
-              }
-            }, 'image/jpeg', 0.8);
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    input.addEventListener('change', async () => {
-      const file = input.files[0];
-      if (!file) return;
-      try {
-        const { blob, previewUrl } = await resizeImage(file);
-        resizedBlob = blob;
-        preview.src = previewUrl;
-        preview.style.display = 'block';
-      } catch (err) {
-        alert('画像読み込みに失敗しました');
-        console.error(err);
-      }
-    });
-
-    document.getElementById('uploadBtn').addEventListener('click', async () => {
-      const place = document.getElementById('placeName').value;
-      const person = document.getElementById('personName').value;
-      const time = document.getElementById('visitTime').value;
-      const content = document.getElementById('content').value;
-
-      if (!resizedBlob || !place || !person || !time || !content) {
-        alert("すべての項目と写真を入力してください。");
-        return;
-      }
-
-      try {
-        const storageRef = storage.ref().child('photos/photo_' + Date.now());
-        await storageRef.put(resizedBlob);
-        const imageUrl = await storageRef.getDownloadURL();
-
-        await db.collection("reports").add({
-          place,
-          person,
-          time,
-          content,
-          lat,
-          lon,
-          timestamp,
-          imageUrl
-        });
-
-        alert("✅ Firestoreに保存完了！");
-      } catch (error) {
-        console.error("🔥 アップロード失敗:", error);
-        alert("エラーが発生しました");
-      }
-    });
-  </script>
 </body>
 </html>
