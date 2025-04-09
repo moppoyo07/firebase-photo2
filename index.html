@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📷 営業報告（Firestore＋画像リサイズ）</title>
 
-  <!-- ✅ Firebase v9 CDN -->
- <!-- ✅ Firebase v9 compat モード -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
-
+  <!-- ✅ Firebase v9互換（compat）モード！ -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
 
   <style>
     body {
@@ -65,39 +63,40 @@
   </style>
 </head>
 <body>
-  <h1>📷 営業報告（リサイズ対応）</h1>
+  <h1>📷 営業報告</h1>
 
   <label>営業先（店名・事業所名）</label>
-  <input type="text" id="placeName" placeholder="例：○○クリニック">
+  <input type="text" id="placeName">
 
   <label>担当者名</label>
-  <input type="text" id="personName" placeholder="例：田中 様">
+  <input type="text" id="personName">
 
   <label>訪問時間</label>
   <input type="time" id="visitTime">
 
-  <label>営業内容（メモ）</label>
-  <textarea id="content" rows="4" placeholder="例：リーフレット設置のお願いなど"></textarea>
+  <label>営業内容</label>
+  <textarea id="content" rows="4"></textarea>
 
   <label>写真を撮影／選択</label>
   <input type="file" accept="image/*" capture="environment" id="cameraInput">
   <img id="preview" src="" alt="プレビュー" style="display:none;">
 
-  <div id="info">📍 位置情報を取得しました（内部用）</div>
+  <div id="info">📍 位置情報を取得中...</div>
 
   <button id="uploadBtn">Firestoreに送信</button>
 
   <script>
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_MSG_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyDFsTE_AelFhiM95Vjprdz1JmIGxHep_zw",
+      authDomain: "photo-upload-form.firebaseapp.com",
+      projectId: "photo-upload-form",
+      storageBucket: "photo-upload-form.appspot.com",
+      messagingSenderId: "194112470190",
+      appId: "1:194112470190:web:38ef7cb06c06432de2413f",
+      measurementId: "G-TH5DL602JK"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const storage = firebase.storage();
 
@@ -116,10 +115,10 @@
             lat = position.coords.latitude;
             lon = position.coords.longitude;
             timestamp = new Date().toISOString();
-            info.innerHTML = `📍 位置情報を取得済み`;
+            info.innerHTML = `📍 位置情報取得済み`;
           },
-          (error) => {
-            info.innerHTML = "⚠️ 位置情報の取得に失敗しました。許可されていますか？";
+          () => {
+            info.innerHTML = "⚠️ 位置情報の取得に失敗しました。";
           }
         );
       }
@@ -128,19 +127,21 @@
     function resizeImage(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = function (e) {
+        reader.onload = (e) => {
           const img = new Image();
-          img.onload = function () {
+          img.onload = () => {
             const canvas = document.createElement('canvas');
-            const maxWidth = 800;
-            const scale = maxWidth / img.width;
-            canvas.width = maxWidth;
+            const scale = 800 / img.width;
+            canvas.width = 800;
             canvas.height = img.height * scale;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             canvas.toBlob((blob) => {
-              if (blob) resolve({ blob, previewUrl: canvas.toDataURL('image/jpeg') });
-              else reject("Blob生成失敗");
+              if (blob) {
+                resolve({ blob, previewUrl: canvas.toDataURL('image/jpeg') });
+              } else {
+                reject("Blob生成失敗");
+              }
             }, 'image/jpeg', 0.8);
           };
           img.src = e.target.result;
@@ -149,7 +150,7 @@
       });
     }
 
-    input.addEventListener('change', async function () {
+    input.addEventListener('change', async () => {
       const file = input.files[0];
       if (!file) return;
       try {
@@ -158,7 +159,7 @@
         preview.src = previewUrl;
         preview.style.display = 'block';
       } catch (err) {
-        alert('画像の読み込みに失敗しました');
+        alert('画像読み込みに失敗しました');
         console.error(err);
       }
     });
@@ -190,13 +191,12 @@
           imageUrl
         });
 
-        alert("✅ Firestoreへの保存完了！");
+        alert("✅ Firestoreに保存完了！");
       } catch (error) {
         console.error("🔥 アップロード失敗:", error);
-        alert("アップロード中にエラーが発生しました");
+        alert("エラーが発生しました");
       }
     });
   </script>
 </body>
 </html>
-
