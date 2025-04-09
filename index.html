@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📷 営業報告（Firestore＋画像リサイズ）</title>
+<!-- Firebase v8 CDN -->
+
 
   <!-- ✅ Firebase v9互換（compat）モード！ -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
-
+ <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -85,16 +86,23 @@
 
   <button id="uploadBtn">Firestoreに送信</button>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDFsTE_AelFhiM95Vjprdz1JmIGxHep_zw",
-      authDomain: "photo-upload-form.firebaseapp.com",
-      projectId: "photo-upload-form",
-      storageBucket: "photo-upload-form.appspot.com",
-      messagingSenderId: "194112470190",
-      appId: "1:194112470190:web:38ef7cb06c06432de2413f",
-      measurementId: "G-TH5DL602JK"
-    };
+
+
+  // Firebase 初期化
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFsTE_AelFhiM95Vjprdz1JmIGxHep_zw",
+    authDomain: "photo-upload-form.firebaseapp.com",
+    projectId: "photo-upload-form",
+    storageBucket: "photo-upload-form.appspot.com", // ← 修正済み！
+    messagingSenderId: "194112470190",
+    appId: "1:194112470190:web:38ef7cb06c06432de2413f",
+    measurementId: "G-TH5DL602JK"
+  };
+ 
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
